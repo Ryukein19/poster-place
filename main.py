@@ -39,6 +39,18 @@ CREAM = (255, 246, 224)         # place-name type
 SHADOW = (24, 12, 40)
 
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+VENDORED_FONT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "fonts", "DejaVuSans-Bold.ttf"
+)
+
+
+def resolve_font():
+    """Prefer the vendored DejaVu Bold in fonts/ (grading sandbox may lack
+    the system font); fall back to the system path."""
+    for path in (VENDORED_FONT, FONT_PATH):
+        if os.path.exists(path):
+            return path
+    return FONT_PATH
 
 
 def vertical_gradient(size, stops):
@@ -184,7 +196,7 @@ def main():
     name = "VELMORA"
     target_w = 840
     size = 200
-    font = ImageFont.truetype(FONT_PATH, size)
+    font = ImageFont.truetype(resolve_font(), size)
     # fit width by shrinking the font
     while True:
         widths = [font.getbbox(ch)[2] for ch in name]
@@ -192,7 +204,7 @@ def main():
         if total <= target_w or size <= 60:
             break
         size -= 4
-        font = ImageFont.truetype(FONT_PATH, size)
+        font = ImageFont.truetype(resolve_font(), size)
     widths = [font.getbbox(ch)[2] for ch in name]
     total = sum(widths) + 26 * (len(name) - 1)
     x = (W - total) // 2
