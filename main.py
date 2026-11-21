@@ -1,11 +1,13 @@
-# VELMORA — a travel poster for a place that does not exist.
+# AQUARIS — a travel poster for a place that does not exist.
 # MakeFun bounty: the-poster-for-a-place-that-i-2-20261121-0539
 #
-# The place: VELMORA, a desert valley where one giant crystal spire rises
-# out of the dunes at dusk. Violet sky melting into amber at the horizon,
-# a low sun, a teal crystal glowing against the dark, and a tiny caravan
-# crossing the dunes for scale. Palette is 4 colours: violet, amber,
-# teal, dark plum.
+# The place: AQUARIS, a city beneath the waves. One great glass dome city
+# glowing warm gold in the deep blue, smaller domes linked by glowing tube
+# walkways, god rays falling from the surface, and the sea alive around
+# it: fish schools, rising bubble streams, jellyfish, coral, seaweed, a
+# submarine and a diver. The name sits large at the top in cream, with
+# the tagline "THE CITY BENEATH THE WAVES" beneath it. Palette is deep
+# indigo water, glowing teal, warm gold windows, cream type.
 #
 # STANDARD LIBRARY ONLY. The grading image is python:3.13-slim: no Pillow,
 # no fonts, no network. Everything is drawn on a raw RGB bytearray with
@@ -27,23 +29,37 @@ OUTPUT_DIR = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
 OUT_PATH = os.path.join(OUTPUT_DIR, "entry.png")
 
 # --- palette ---------------------------------------------------------------
-VIOLET_TOP = (38, 24, 74)       # deep dusk violet, top of sky
-VIOLET_MID = (96, 52, 110)      # purple band
-AMBER = (232, 130, 63)          # horizon glow
-SUN_CORE = (255, 216, 138)      # low sun
-SUN_HALO = (255, 178, 92)
-TEAL_HI = (201, 255, 242)       # crystal highlight facet
-TEAL_MID = (88, 216, 200)       # crystal main facet
-TEAL_DARK = (28, 128, 128)      # crystal shadow facet
-TEAL_GLOW = (64, 200, 190)
-DUNE_FAR = (74, 42, 66)         # far dune
-DUNE_MID = (58, 32, 56)         # middle dune
-DUNE_NEAR = (42, 24, 48)        # near dune, darkest
-CREAM = (255, 246, 224)         # place-name type
-SHADOW = (24, 12, 40)
-STAR = (255, 244, 220)
-BIRD = (30, 16, 44)
-EDGE_HI = (235, 255, 248)
+WATER_TOP = (6, 14, 40)        # deep indigo, surface water
+WATER_MID = (12, 44, 90)       # mid blue
+WATER_GLOW = (24, 100, 140)    # glow band around the city
+WATER_DEEP = (10, 26, 58)      # deep water near the seabed
+RAY = (180, 230, 240)          # god-ray pale cyan
+DOME_RIM = (175, 232, 242)     # glass rim highlight
+DOME_IN = (34, 104, 138)       # dome interior, lit blue-teal
+DOME_HI = (205, 242, 250)      # specular highlight on the glass
+DOME_SH = (10, 28, 58)         # dome shadow, bottom-right
+DOME_FAR = (26, 72, 108)       # far dome interior, hazier blue
+DOME_FAR_RIM = (140, 195, 215)
+BUILD = (14, 36, 64)           # building silhouettes inside the dome
+WINDOW = (255, 200, 110)       # warm gold windows
+GOLD = (255, 214, 130)
+CREAM = (255, 246, 224)        # place-name type
+SHADOW = (6, 12, 34)
+SEABED = (16, 24, 54)          # seabed ridge
+ROCK = (24, 34, 68)
+CORAL_PINK = (255, 120, 150)
+CORAL_ORANGE = (255, 150, 90)
+WEED = (36, 150, 110)
+WEED_DARK = (22, 100, 78)
+FISH = (140, 200, 230)         # fish, pale blue
+FISH_DARK = (16, 42, 74)       # fish, dark silhouette
+FISH_BELLY = (210, 235, 245)
+BUBBLE = (190, 230, 245)
+JELLY_PINK = (255, 170, 212)
+JELLY_CYAN = (150, 230, 255)
+SUB = (52, 84, 124)            # submarine hull
+SUB_TOP = (96, 136, 176)
+DIVER = (18, 28, 48)
 
 # --- raw RGB pixel buffer --------------------------------------------------
 buf = bytearray(W * H * 3)
@@ -94,13 +110,8 @@ def fill_rect(x0, y0, w, h, color):
         hspan(y, x0, x0 + w, color)
 
 
-def fill_polygon(pts, color):
-    """Scanline fill of a polygon (list of (x, y), floats ok)."""
-    if len(pts) < 3:
-        return
-    ys = [p[1] for p in pts]
-    y_min = max(0, int(math.floor(min(ys))))
-    y_max = min(H - 1, int(math.ceil(max(ys))))
+def _poly_spans(pts, y_min, y_max):
+    """Yield (y, x_left, x_right) scanline spans of a polygon."""
     n = len(pts)
     for y in range(y_min, y_max + 1):
         yc = y + 0.5
@@ -113,7 +124,32 @@ def fill_polygon(pts, color):
                 xs.append(x0 + t * (x1 - x0))
         xs.sort()
         for k in range(0, len(xs) - 1, 2):
-            hspan(y, int(math.ceil(xs[k])), int(math.floor(xs[k + 1])) + 1, color)
+            yield y, int(math.ceil(xs[k])), int(math.floor(xs[k + 1])) + 1
+
+
+def fill_polygon(pts, color):
+    """Scanline fill of a polygon (list of (x, y), floats ok)."""
+    if len(pts) < 3:
+        return
+    ys = [p[1] for p in pts]
+    y_min = max(0, int(math.floor(min(ys))))
+    y_max = min(H - 1, int(math.ceil(max(ys))))
+    for y, x0, x1 in _poly_spans(pts, y_min, y_max):
+        hspan(y, x0, x1, color)
+
+
+def fill_polygon_alpha(pts, color, alpha):
+    """Scanline fill with a translucent colour (alpha 0..255)."""
+    if len(pts) < 3 or alpha <= 0:
+        return
+    ys = [p[1] for p in pts]
+    y_min = max(0, int(math.floor(min(ys))))
+    y_max = min(H - 1, int(math.ceil(max(ys))))
+    for y, x0, x1 in _poly_spans(pts, y_min, y_max):
+        x0 = max(0, x0)
+        x1 = min(W, x1)
+        for x in range(x0, x1):
+            blend_px(x, y, color, alpha)
 
 
 def fill_ellipse(cx, cy, rx, ry, color, alpha=255):
@@ -157,7 +193,7 @@ def draw_glow(cx, cy, rx, ry, color, strength=0.9):
                     blend_px(x, y, color, a)
 
 
-def sky_gradient(stops):
+def v_gradient(stops):
     """Fill the buffer with a vertical gradient; stops = [(y_frac, rgb)]."""
     n = len(stops)
     for y in range(H):
@@ -197,10 +233,11 @@ def write_png(path, width, height):
         f.write(png)
     return len(png)
 
-# --- geometric bitmap font for the place name ------------------------------
-# 7 wide x 9 tall per letter, '#' = filled. Bold blocky letterforms,
-# drawn at 16px cells -> 144px cap height. Must read clearly as VELMORA
-# at full size and at a 300px downscale.
+# --- geometric bitmap font -------------------------------------------------
+# 7 wide x 9 tall per letter, '#' = filled. Bold blocky letterforms.
+# The place name uses 16px cells (144px cap height); the tagline uses
+# 5px cells (45px cap height). Must read clearly at full size and at
+# a 300px downscale.
 FONT = {
     'V': ["#.....#",
           "#.....#",
@@ -265,121 +302,408 @@ FONT = {
           "#.....#",
           "#.....#",
           "#.....#"],
+    'Q': [".#####.",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#...#.#",
+          "#....##",
+          ".#####."],
+    'U': ["#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          ".#####."],
+    'I': ["#######",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#...",
+          "#######"],
+    'S': [".#####.",
+          "#.....#",
+          "#......",
+          "#......",
+          ".#####.",
+          "......#",
+          "......#",
+          "#.....#",
+          ".#####."],
+    'T': ["#######",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#..."],
+    'H': ["#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#######",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#"],
+    'C': [".#####.",
+          "#.....#",
+          "#......",
+          "#......",
+          "#......",
+          "#......",
+          "#......",
+          "#.....#",
+          ".#####."],
+    'Y': ["#.....#",
+          "#.....#",
+          ".#...#.",
+          ".#...#.",
+          "..#.#..",
+          "...#...",
+          "...#...",
+          "...#...",
+          "...#..."],
+    'B': ["#####..",
+          "#....#.",
+          "#....#.",
+          "#....#.",
+          "#####..",
+          "#....#.",
+          "#....#.",
+          "#....#.",
+          "#####.."],
+    'N': ["#.....#",
+          "##....#",
+          "#.#...#",
+          "#..#..#",
+          "#...#.#",
+          "#....##",
+          "#.....#",
+          "#.....#",
+          "#.....#"],
+    'W': ["#.....#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#..#..#",
+          "#..#..#",
+          "#.#.#.#",
+          "#.#.#.#",
+          "##...##"],
 }
-CELL = 16          # px per grid cell
-GAP = 20           # px between letters
 
 
-def draw_name(name, y0, color):
-    """Draw the place name centred, letterspaced, with a soft shadow."""
-    widths = [len(FONT[ch][0]) * CELL for ch in name]
-    total = sum(widths) + GAP * (len(name) - 1)
+def text_width(text, cell, gap):
+    """Pixel width of text at the given cell size and letter gap."""
+    w = 0
+    for ch in text:
+        w += 3 * cell if ch == ' ' else 7 * cell
+        w += gap
+    return w - gap if text else 0
+
+
+def draw_text(text, y0, color, cell=16, gap=20, shad=(4, 5)):
+    """Draw text centred, letterspaced, with a soft shadow pass."""
+    total = text_width(text, cell, gap)
     x = (W - total) // 2
-    for ox, oy in ((4, 5), (0, 0)):  # shadow pass, then cream pass
+    for ox, oy in ((shad[0], shad[1]), (0, 0)):
         cx = x + ox
         cy = y0 + oy
         col = SHADOW if (ox, oy) != (0, 0) else color
-        for ch, wch in zip(name, widths):
+        for ch in text:
+            if ch == ' ':
+                cx += 3 * cell + gap
+                continue
             grid = FONT[ch]
             for r, row in enumerate(grid):
-                for c, cell in enumerate(row):
-                    if cell == '#':
-                        fill_rect(cx + c * CELL, cy + r * CELL, CELL, CELL, col)
-            cx += wch + GAP
+                for c, cellv in enumerate(row):
+                    if cellv == '#':
+                        fill_rect(cx + c * cell, cy + r * cell, cell, cell, col)
+            cx += 7 * cell + gap
+
+# --- the underwater city ---------------------------------------------------
+def draw_dome_shell(cx, cy, r, interior, rim, hi, sh):
+    """A glass dome: bright rim ring, lit interior, specular highlight
+    top-left, shadow bottom-right, bright arc along the upper-left rim."""
+    fill_ellipse(cx, cy, r, r, rim)
+    fill_ellipse(cx, cy, r - 6, r - 6, interior)
+    draw_glow(cx - r // 3, cy - r // 3, r // 2 + 20, r // 2 + 20, hi, 0.5)
+    draw_glow(cx + r // 3, cy + r // 3, r // 2 + 10, r // 2 + 10, sh, 0.45)
+    for a in range(185, 272, 6):  # bright arc, upper-left rim
+        rad = math.radians(a)
+        ax = cx + int((r - 3) * math.cos(rad))
+        ay = cy + int((r - 3) * math.sin(rad))
+        fill_ellipse(ax, ay, 4, 4, (235, 250, 255), alpha=200)
 
 
-# --- dunes and caravan -----------------------------------------------------
-def dune_y(x, y_base=640, amp=26, phase=0.4):
-    return y_base + amp * math.sin((x / W) * math.pi * 1.6 + phase)
+def draw_building(bx, base_y, w, h):
+    """Dark tower inside the dome with a grid of warm gold windows."""
+    fill_rect(bx, base_y - h, w, h, BUILD)
+    for wy in range(base_y - h + 8, base_y - 6, 12):
+        for wx in range(bx + 6, bx + w - 4, 11):
+            if random.random() < 0.75:
+                fill_rect(wx, wy, 4, 5, WINDOW)
 
 
-def dune(y_base, amp, phase, color):
-    """A dune ridge: filled polygon whose top edge is a sine curve."""
+def dome_windows(cx, cy, r, n):
+    """Scattered warm window lights inside a dome, lower two-thirds."""
+    for _ in range(n):
+        ang = random.uniform(0, 2 * math.pi)
+        rad = random.uniform(0, r * 0.85)
+        x = int(cx + rad * math.cos(ang))
+        y = int(cy + rad * math.sin(ang))
+        if y > cy - r * 0.4:
+            fill_rect(x, y, 4, 4, WINDOW)
+
+
+def draw_walkway(x0, y0, x1, y1):
+    """A glowing tube walkway between two domes."""
+    draw_line(x0, y0, x1, y1, (50, 170, 175), width=9)
+    draw_line(x0, y0, x1, y1, (140, 235, 230), width=3)
+    draw_glow((x0 + x1) // 2, (y0 + y1) // 2, 40, 25, (60, 180, 185), 0.4)
+
+
+def draw_fish(cx, cy, size, direction, body, belly=None):
+    """A small fish: elliptical body, tail triangle, belly, eye."""
+    fill_ellipse(cx, cy, size, max(2, int(size * 0.45)), body)
+    tx = cx - direction * size
+    fill_polygon([(tx, cy),
+                  (tx - direction * size, cy - size // 2),
+                  (tx - direction * size, cy + size // 2)], body)
+    if belly:
+        fill_ellipse(cx, cy + size // 5, size // 2, max(1, size // 4), belly)
+    ex = cx + direction * size * 2 // 3
+    fill_ellipse(ex, cy - size // 6, 1, 1, SHADOW)
+
+
+def draw_fish_school(cx, cy, n, direction, body, belly=None):
+    """A loose school: fish scattered around a centre, same direction."""
+    for _ in range(n):
+        fx = cx + random.randint(-70, 70)
+        fy = cy + random.randint(-28, 28)
+        size = random.randint(8, 18)
+        draw_fish(fx, fy, size, direction, body, belly)
+
+
+def draw_bubble(x, y, r, alpha=140):
+    fill_ellipse(x, y, r, r, BUBBLE, alpha=alpha)
+    fill_ellipse(x - r // 3, y - r // 3, max(1, r // 3), max(1, r // 3),
+                 (255, 255, 255), alpha=200)
+
+
+def bubble_stream(x0, y_top, y_base):
+    """A column of bubbles rising from y_base up to y_top, wobbling."""
+    y = y_base
+    step = 0
+    while y > y_top:
+        wob = int(6 * math.sin(step * 0.9))
+        r = 2 + (step % 4)
+        draw_bubble(x0 + wob, y, r)
+        y -= 26 + (step % 3) * 5
+        step += 1
+
+
+def draw_jellyfish(cx, cy, r, color):
+    """Glowing bell + wavy tentacles, drifting."""
+    fill_ellipse(cx, cy, r, int(r * 0.7), color, alpha=200)
+    fill_ellipse(cx, cy - r // 5, int(r * 0.6), int(r * 0.4),
+                 (255, 255, 255), alpha=90)
+    for i, dx in enumerate([-r * 3 // 4, -r // 3, 0, r // 3, r * 3 // 4]):
+        length = r + 20 + (i * 7) % 25
+        x0 = cx + dx
+        y0 = cy + int(r * 0.5)
+        x1, y1 = x0 + 4, y0 + length // 3
+        x2, y2 = x0 - 3, y0 + 2 * length // 3
+        x3, y3 = x0 + 2, y0 + length
+        draw_line(x0, y0, x1, y1, color, width=2, alpha=160)
+        draw_line(x1, y1, x2, y2, color, width=2, alpha=160)
+        draw_line(x2, y2, x3, y3, color, width=2, alpha=160)
+
+
+def draw_coral(cx, cy, scale, color):
+    """A fan of branching arms from one base point on the seabed."""
+    for ang in [-70, -45, -20, 0, 20, 45, 70]:
+        rad = math.radians(ang)
+        length = scale * random.uniform(0.6, 1.0)
+        x1 = cx + int(length * math.sin(rad))
+        y1 = cy - int(length * math.cos(rad))
+        draw_line(cx, cy, x1, y1, color, width=max(2, scale // 4))
+        mx, my = (cx + x1) // 2, (cy + y1) // 2
+        bx = mx + int(scale * 0.3 * math.sin(rad + 0.6))
+        by = my - int(scale * 0.3 * math.cos(rad + 0.6))
+        draw_line(mx, my, bx, by, color, width=2)
+
+
+def draw_seaweed(x, base_y, height, color):
+    """One wavy blade: a ribbon polygon along a sine centreline."""
+    pts_left = []
+    pts_right = []
+    wdt = 5
+    for s in range(0, height + 1, 6):
+        y = base_y - s
+        off = int(8 * math.sin(s / height * math.pi * 1.5))
+        pts_left.append((x + off - wdt, y))
+        pts_right.append((x + off + wdt, y))
+    fill_polygon(pts_left + pts_right[::-1], color)
+
+
+def draw_sub(cx, cy, scale, direction=1):
+    """A small submarine: hull, tower, periscope, gold portholes,
+    tail fin, propeller, and a translucent searchlight cone."""
+    rx = int(70 * scale)
+    ry = int(22 * scale)
+    fill_ellipse(cx, cy, rx, ry, SUB)
+    fill_ellipse(cx, cy - ry // 3, rx, ry // 2, SUB_TOP)
+    fill_rect(cx - int(12 * scale), cy - ry - int(14 * scale),
+              int(24 * scale), int(16 * scale), SUB)
+    draw_line(cx + int(6 * scale), cy - ry - int(14 * scale),
+              cx + int(6 * scale), cy - ry - int(26 * scale), SUB, width=3)
+    for px in (-40, -10, 20):
+        fill_ellipse(cx + int(px * scale), cy, int(5 * scale),
+                     int(5 * scale), WINDOW)
+    fill_polygon([(cx - direction * rx, cy),
+                  (cx - direction * (rx + 18), cy - 14),
+                  (cx - direction * (rx + 18), cy + 14)], SUB)
+    draw_line(cx - direction * (rx + 20), cy - 8,
+              cx - direction * (rx + 20), cy + 8, SUB_TOP, width=3)
+    fx = cx + direction * rx
+    fill_polygon_alpha([(fx, cy - 6), (fx, cy + 6),
+                        (fx + direction * 130, cy + 40),
+                        (fx + direction * 130, cy - 40)],
+                       (255, 230, 160), 26)
+
+
+def draw_diver(cx, cy, scale):
+    """A tiny diver: body, head, tank, fins, one arm."""
+    fill_ellipse(cx, cy, int(16 * scale), int(7 * scale), DIVER)
+    fill_ellipse(cx + int(18 * scale), cy - int(2 * scale),
+                 int(6 * scale), int(6 * scale), DIVER)
+    fill_rect(cx - int(6 * scale), cy - int(12 * scale),
+              int(14 * scale), int(6 * scale), (150, 160, 170))
+    fill_polygon([(cx - int(16 * scale), cy),
+                  (cx - int(30 * scale), cy - int(8 * scale)),
+                  (cx - int(28 * scale), cy + int(4 * scale))], DIVER)
+    fill_polygon([(cx - int(16 * scale), cy),
+                  (cx - int(30 * scale), cy + int(8 * scale)),
+                  (cx - int(28 * scale), cy - int(2 * scale))], DIVER)
+    draw_line(cx + int(8 * scale), cy + int(4 * scale),
+              cx + int(20 * scale), cy + int(10 * scale), DIVER, width=3)
+
+
+def seabed(top_y, amp, phase, color):
+    """A seabed ridge: filled polygon whose top edge is a sine curve."""
     pts = [(0, H)]
     for x in range(0, W + 1, 8):
-        pts.append((x, y_base + amp * math.sin((x / W) * math.pi * 1.6 + phase)))
+        pts.append((x, top_y + amp * math.sin((x / W) * math.pi * 1.8 + phase)))
     pts.append((W, H))
     fill_polygon(pts, color)
 
 
-def draw_camel(cx, gy):
-    """Tiny camel silhouette with rider, standing on the ridge at gy."""
-    fill_ellipse(cx, gy - 7, 18, 9, SHADOW)        # body
-    fill_ellipse(cx, gy - 18, 9, 8, SHADOW)        # hump
-    fill_polygon([(cx + 10, gy - 12), (cx + 24, gy - 34),
-                  (cx + 30, gy - 32), (cx + 18, gy - 8)], SHADOW)  # neck
-    fill_ellipse(cx + 28, gy - 33, 6, 5, SHADOW)   # head
-    for lx in (cx - 11, cx - 3, cx + 5, cx + 13):  # four legs
-        draw_line(lx, gy, lx, gy + 13, SHADOW, width=3)
-    fill_ellipse(cx, gy - 29, 5, 5, SHADOW)        # rider
-
 def main():
     random.seed(20261121)
 
-    # --- sky: violet dusk melting into amber at the horizon ---------------
-    sky_gradient([
-        (0.00, VIOLET_TOP),
-        (0.38, VIOLET_MID),
-        (0.58, (176, 92, 96)),
-        (0.66, AMBER),
-        (1.00, AMBER),
+    # --- water: dark indigo at the surface, glowing teal around the city,
+    #     deep again toward the seabed --------------------------------------
+    v_gradient([
+        (0.00, WATER_TOP),
+        (0.30, WATER_MID),
+        (0.55, WATER_GLOW),
+        (0.78, WATER_DEEP),
+        (1.00, (8, 18, 44)),
     ])
 
-    # --- faint stars in the upper sky --------------------------------------
-    for _ in range(90):
-        x = random.randint(0, W - 1)
-        y = random.randint(0, 300)
-        r = random.choice([1, 1, 2])
-        a = random.randint(60, 170)
-        fill_ellipse(x, y, r, r, STAR, alpha=a)
+    # --- god rays slanting down from the surface ---------------------------
+    for (tx0, tx1, bx0, bx1, yb, a) in [
+            (100, 170, 180, 230, 520, 26),
+            (330, 400, 400, 450, 480, 22),
+            (580, 640, 640, 680, 500, 26),
+            (800, 860, 850, 890, 460, 20)]:
+        fill_polygon_alpha([(tx0, 0), (tx1, 0), (bx1, yb), (bx0, yb)],
+                           RAY, a)
 
-    # --- sun glow + sun, low on the left, just above the horizon ----------
-    sun_x, sun_y, sun_r = 300, 565, 52
-    draw_glow(sun_x, sun_y, 190, 130, SUN_HALO)
-    fill_ellipse(sun_x, sun_y, sun_r, sun_r, SUN_CORE)
+    # --- the city's own glow, lighting the water around it -----------------
+    draw_glow(512, 650, 340, 300, (40, 140, 170), 0.4)
 
-    # --- the crystal spire: one dominant landmark, centre-right -----------
-    # glow behind the crystal so it reads as the light source of the valley
-    draw_glow(640, 440, 150, 260, TEAL_GLOW)
-    apex = (640, 250)
-    base_y = 690
-    half_w = 105
-    # facet triangles (left = sunlit, right = shadow)
-    left_facet = [apex, (apex[0] - half_w, base_y), (apex[0] - 18, base_y)]
-    mid_facet = [apex, (apex[0] - 18, base_y), (apex[0] + 30, base_y)]
-    right_facet = [apex, (apex[0] + 30, base_y), (apex[0] + half_w, base_y)]
-    fill_polygon(left_facet, TEAL_HI)
-    fill_polygon(mid_facet, TEAL_MID)
-    fill_polygon(right_facet, TEAL_DARK)
-    # a small notch cut near the top for a faceted silhouette
-    fill_polygon([(640, 250), (612, 310), (640, 337), (668, 310)], TEAL_DARK)
-    # bright core line down the sunlit edge
-    draw_line(apex[0], apex[1], apex[0] - half_w, base_y, TEAL_HI, width=4)
-    draw_line(apex[0], apex[1], apex[0] - half_w, base_y, EDGE_HI, width=5)
-    # small shard crystals at the base
-    for sx, sw, sh in [(505, 34, 120), (742, 28, 95), (700, 20, 70)]:
-        fill_polygon([(sx, base_y - sh), (sx - sw, base_y), (sx + sw, base_y)],
-                     TEAL_MID)
-        fill_polygon([(sx, base_y - sh), (sx - sw, base_y), (sx, base_y)],
-                     TEAL_HI)
+    # --- far domes: smaller, hazier, bluer ---------------------------------
+    draw_dome_shell(235, 745, 100, DOME_FAR, DOME_FAR_RIM,
+                    (190, 230, 240), (12, 30, 60))
+    dome_windows(235, 745, 100, 12)
+    draw_dome_shell(805, 725, 115, DOME_FAR, DOME_FAR_RIM,
+                    (190, 230, 240), (12, 30, 60))
+    dome_windows(805, 725, 115, 14)
+    draw_dome_shell(120, 800, 55, DOME_FAR, DOME_FAR_RIM,
+                    (190, 230, 240), (12, 30, 60))
+    dome_windows(120, 800, 55, 5)
 
-    # --- dunes: three ridges, far to near, crystal base tucked behind ------
-    dune(640, 26, 0.4, DUNE_FAR)
-    # tiny caravan walking ON the far ridge, for scale
-    for cx in (330, 395, 460):
-        draw_camel(cx, int(dune_y(cx)))
-    dune(700, 22, 1.2, DUNE_MID)
-    dune(760, 34, 2.2, DUNE_NEAR)
-    # re-draw the crystal base over the far dune so the spire sits IN the valley
-    fill_polygon([(505, 690), (505 - 34, 690), (505, 570)], TEAL_MID)
+    # --- glowing tube walkways linking the domes ---------------------------
+    draw_walkway(334, 730, 273, 670)   # left dome -> central dome
+    draw_walkway(691, 710, 751, 665)   # right dome -> central dome
+    draw_walkway(140, 770, 172, 792)   # tiny dome -> left dome
 
-    # --- birds --------------------------------------------------------------
-    for bx, by, s in [(180, 210, 14), (240, 180, 11), (830, 250, 13), (880, 205, 10)]:
-        draw_line(bx - s, by, bx, by - 6, BIRD, width=3, alpha=220)
-        draw_line(bx, by - 6, bx + s, by, BIRD, width=3, alpha=220)
+    # --- the central dome city: one dominant landmark ----------------------
+    draw_dome_shell(512, 650, 240, DOME_IN, DOME_RIM, DOME_HI, DOME_SH)
+    for (bx, w, h) in [(375, 42, 80), (425, 50, 120), (480, 45, 95),
+                        (530, 55, 140), (590, 42, 70)]:
+        draw_building(bx, 840, w, h)
+    dome_windows(512, 650, 240, 30)
 
-    # --- the place name: VELMORA, large, letterspaced, top centre ---------
-    draw_name("VELMORA", 78, CREAM)
+    # --- the sea, alive: fish schools --------------------------------------
+    draw_fish_school(300, 340, 12, 1, FISH, FISH_BELLY)
+    draw_fish_school(720, 300, 10, -1, FISH_DARK, None)
+    draw_fish_school(860, 480, 7, -1, FISH, FISH_BELLY)
+    draw_fish(450, 420, 14, 1, FISH_DARK, None)
+    draw_fish(200, 600, 12, -1, FISH, FISH_BELLY)
+    draw_fish(900, 600, 10, 1, FISH_DARK, None)
+
+    # --- bubble streams -----------------------------------------------------
+    bubble_stream(512, 300, 410)   # from the central dome
+    bubble_stream(235, 500, 640)   # from the left dome
+    bubble_stream(180, 750, 880)   # from the coral
+    bubble_stream(706, 430, 530)   # from the diver
+
+    # --- jellyfish drifting near the top ------------------------------------
+    draw_jellyfish(140, 330, 26, JELLY_PINK)
+    draw_jellyfish(890, 310, 22, JELLY_CYAN)
+    draw_jellyfish(700, 360, 16, JELLY_PINK)
+
+    # --- a submarine and a diver, for scale ---------------------------------
+    draw_sub(170, 520, 1.0, direction=1)
+    draw_diver(700, 540, 1.0)
+
+    # --- the seabed, tucked over the dome bases ----------------------------
+    seabed(885, 18, 0.6, SEABED)
+    for (rx, ry, rw, rh) in [(60, 905, 46, 18), (830, 920, 60, 22),
+                              (960, 900, 40, 16)]:
+        fill_ellipse(rx, ry, rw, rh, ROCK)
+
+    # --- coral, seaweed and shells on the seabed ---------------------------
+    draw_coral(180, 895, 46, CORAL_PINK)
+    draw_coral(700, 900, 40, CORAL_ORANGE)
+    draw_coral(920, 885, 34, CORAL_PINK)
+    fill_ellipse(300, 905, 26, 14, CORAL_ORANGE)
+    fill_ellipse(620, 915, 22, 12, CORAL_PINK)
+    for (sx, sy, hh, col) in [(90, 900, 90, WEED), (320, 895, 120, WEED_DARK),
+                               (480, 900, 70, WEED), (760, 905, 110, WEED),
+                               (960, 895, 80, WEED_DARK)]:
+        draw_seaweed(sx, sy, hh, col)
+    for (sx, sy) in [(260, 930), (420, 940), (560, 935), (840, 945)]:
+        fill_ellipse(sx, sy, 7, 4, (200, 190, 220))
+
+    # --- the place name: AQUARIS, large, letterspaced, top centre ---------
+    draw_text("AQUARIS", 64, CREAM, cell=16, gap=20)
+    draw_text("THE CITY BENEATH THE WAVES", 232, GOLD, cell=5, gap=6,
+              shad=(2, 2))
 
     # --- save ----------------------------------------------------------------
     os.makedirs(OUTPUT_DIR, exist_ok=True)
