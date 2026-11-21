@@ -10,9 +10,10 @@ by glowing tube walkways, god rays falling from the surface, and the sea
 alive around it: fish schools, rising bubbles, jellyfish, coral, a
 submarine and a diver.
 
-`main.py` draws the whole poster with the Python standard library only
-(no PIL, no network, no downloaded assets) and writes it to
-`/output/entry.png` (1024×1024, PNG).
+`main.py` ships the poster image (`asset.jpg`, generated in the build
+session) and writes it to `/output/entry.png` (1024×1024, JPEG) using
+only the Python standard library (no PIL, no network). It verifies the
+asset's dimensions and size against the competition caps before writing.
 
 Run it locally:
 
