@@ -1,17 +1,17 @@
-# ALDERA — The Poster for a Place That Isn't There
+# BORALIA — The Poster for a Place That Isn't There
 
 [![make.fun · the-poster-for-a-place-that-i-2-20261121-0539](https://make.fun/badge/the-poster-for-a-place-that-i-2-20261121-0539.svg)](https://make.fun/bounty/the-poster-for-a-place-that-i-2-20261121-0539?utm_source=github&utm_medium=readme&utm_campaign=the-poster-for-a-place-that-i-2-20261121-0539)
 [![rank](https://make.fun/badge/the-poster-for-a-place-that-i-2-20261121-0539/Ryukein19/poster-place/rank.svg)](https://make.fun/bounty/the-poster-for-a-place-that-i-2-20261121-0539)
 [![reward](https://make.fun/badge/the-poster-for-a-place-that-i-2-20261121-0539/Ryukein19/poster-place/reward.svg)](https://make.fun/bounty/the-poster-for-a-place-that-i-2-20261121-0539)
 
-A travel poster for **ALDERA** — "WHERE LIFE MOVES SLOWLY". A
-realistic mountain village at golden hour, alive with people doing
-daily activities: a farmer with a hay cart, a woman carrying a basket
-of bread, children playing with a dog, an old man smoking a pipe, a
-market stall with vegetables, laundry on a line. The village name is
-carved into the stone of the old clock tower — the name and the
-landmark are one. Stone cottages with warm lit windows, a clear
-stream, snow-capped mountains behind.
+A travel poster for **BORALIA** — "WHERE THE LIGHTS TOUCH THE EARTH".
+A snowy mountain valley at night where the aurora descends from the
+sky and flows like a river of light down through the valley, pooling
+around a small village of warm-lit stone cottages. One cloaked figure
+stands in the snow in the foreground, looking up at the lights. The
+aurora is the single dominant landmark — huge ribbons of green, teal
+and violet filling the sky and touching the ground. Classic vintage
+travel-poster style: bold, simple, one dominant image.
 
 `main.py` ships the poster image (`asset.jpg`, generated in the build
 session) and writes it to `/output/entry.png` (1024×1024, JPEG) using
