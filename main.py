@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""AQUARIS -- The Poster for a Place That Isn't There.
+"""VERDARA -- The Poster for a Place That Isn't There.
 
 Writes the poster image to /output/entry.png.
 
 The poster itself is a single image asset (asset.jpg) generated in the
-build session: a painterly travel poster of AQUARIS, the city beneath
-the waves -- a glass dome city glowing warm gold in deep blue water,
-god rays from the surface, fish, jellyfish, coral, a submarine and a
-diver. This program ships that image and writes it out, using only
-the Python standard library (no PIL, no network).
+build session: a painterly travel poster of VERDARA, a peaceful
+mountain village in a green valley at golden hour -- stone cottages
+with warm lit windows, a church with a tall steeple, a winding path
+through flower meadows, a stream, grazing sheep, snow-capped
+mountains, and a person walking the path with a basket. This program
+ships that image and writes it out, using only the Python standard
+library (no PIL, no network).
 """
 
 import os
